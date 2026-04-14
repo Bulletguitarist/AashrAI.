@@ -179,7 +179,8 @@ To switch to a different Gemini model (e.g. `gemini-2.0-flash` for lower cost), 
 - [ ] Vernacular voice input (speak the form in Hindi/Marathi)
 - [ ] Lawyer/CA referral for flagged complex tasks
 - [ ] Direct portal deep-links per task
-
+- [ ] Pre-Death Planning Mode
+- [ ] Verified Legal Network
 ---
 
 
