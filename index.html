@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AashrAI - Post-Death Paperwork Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Outfit:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onerror="window._jspdfFailed=true"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #181816; --ink2: #38382f; --ink3: #78786e;
+    --paper: #f7f4ef; --paper2: #efece6; --paper3: #e6e2d9;
+    --accent: #a63d22; --accent2: #c4572e;
+    --teal: #1a5e4e; --teal-bg: #eaf3f0;
+    --amber: #b56e10; --amber-bg: #fdf2e0;
+    --red: #b52a2a; --red-bg: #fbeaea;
+    --green: #2a6038; --green-bg: #eaf3ec;
+    --border: rgba(24,24,22,0.1);
+    --r: 8px;
+  }
+  html { font-size: 16px; }
+  body { font-family: 'Outfit', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; line-height: 1.6; }
+
+  /* HEADER */
+  header { background: var(--ink); color: var(--paper); padding: 18px 48px; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-mark { width: 34px; height: 34px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .logo-mark svg { width: 18px; height: 18px; fill: none; stroke: white; stroke-width: 1.8; }
+  .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; letter-spacing: 0.2px; }
+  .logo-sub { font-size: 11px; color: rgba(247,244,239,0.45); font-weight: 300; margin-top: 1px; letter-spacing: 0.4px; }
+  .status-pill { display: flex; align-items: center; gap: 7px; padding: 6px 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 99px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(247,244,239,0.6); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: blink 2s ease-in-out infinite; flex-shrink: 0; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* LAYOUT */
+  .app { max-width: 1080px; margin: 0 auto; padding: 44px 32px 100px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* NOTICE BANNER */
+  .notice { display: flex; align-items: flex-start; gap: 10px; padding: 11px 16px; border-radius: var(--r); margin-bottom: 28px; font-size: 13px; border: 1px solid; }
+  .notice.checking { background: var(--amber-bg); color: var(--amber); border-color: rgba(181,110,16,0.18); }
+  .notice.online  { background: var(--green-bg); color: var(--green); border-color: rgba(42,96,56,0.18); }
+  .notice.offline { background: var(--red-bg);   color: var(--red);   border-color: rgba(181,42,42,0.18); }
+  .notice code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: rgba(0,0,0,0.07); padding: 1px 6px; border-radius: 3px; }
+
+  /* HERO BAND */
+  .hero { background: var(--ink); color: var(--paper); border-radius: var(--r); padding: 36px 40px; margin-bottom: 32px; }
+  .hero h1 { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 500; line-height: 1.3; margin-bottom: 10px; max-width: 560px; }
+  .hero p { font-size: 13px; color: rgba(247,244,239,0.6); font-weight: 300; max-width: 480px; line-height: 1.7; }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .form-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 28px; }
+  .form-card.full { grid-column: 1 / -1; }
+  .card-title { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 500; color: var(--ink); margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 9px; }
+  .card-title svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.5; }
+
+  label { display: block; font-size: 11px; font-weight: 500; color: var(--ink3); margin-bottom: 5px; letter-spacing: 0.5px; text-transform: uppercase; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--ink); background: var(--paper); transition: border-color 0.15s, box-shadow 0.15s; margin-bottom: 16px; appearance: none; -webkit-appearance: none; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(166,61,34,0.08); background: white; }
+  textarea { resize: vertical; min-height: 80px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ASSET TAGS */
+  .asset-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; min-height: 10px; }
+  .asset-tag { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 12px; background: var(--teal-bg); color: var(--teal); border-radius: 99px; font-size: 12px; font-weight: 500; }
+  .asset-tag button { background: none; border: none; cursor: pointer; color: var(--teal); font-size: 15px; line-height: 1; padding: 0; margin: 0; width: auto; margin-bottom: 0; opacity: 0.7; }
+  .asset-tag button:hover { opacity: 1; }
+  .add-row { display: flex; gap: 8px; }
+  .add-row input { flex: 1; margin-bottom: 0; }
+  .btn-add { padding: 10px 18px; background: var(--ink); color: var(--paper); border: none; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+  .btn-add:hover { background: var(--ink2); }
+
+  /* SUBMIT */
+  .submit-area { text-align: center; padding: 8px 0; }
+  .btn-primary { display: inline-flex; align-items: center; gap: 12px; padding: 15px 44px; background: var(--accent); color: white; border: none; border-radius: var(--r); font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.1s; letter-spacing: 0.2px; }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-primary:active { transform: none; }
+  .submit-note { margin-top: 10px; font-size: 11px; color: var(--ink3); letter-spacing: 0.3px; }
+
+  /* ERROR */
+  .error-msg { background: var(--red-bg); color: var(--red); border: 1px solid rgba(181,42,42,0.18); border-radius: var(--r); padding: 12px 16px; font-size: 13px; margin-bottom: 20px; display: none; }
+  .error-msg.show { display: block; }
+
+  /* LOADING */
+  .loading-wrap { min-height: 72vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; }
+  .spinner { width: 44px; height: 44px; border: 2px solid var(--paper3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.85s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 500; color: var(--ink); }
+  .loading-steps { display: flex; flex-direction: column; gap: 7px; width: 360px; }
+  .lstep { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink3); padding: 10px 14px; border-radius: 6px; background: white; border: 1px solid var(--border); opacity: 0.35; transition: opacity 0.35s, color 0.35s; }
+  .lstep.active { opacity: 1; color: var(--ink); }
+  .lstep.done   { opacity: 1; color: var(--green); }
+  .ldot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background 0.3s; }
+  .lstep.active .ldot { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  .lstep.done   .ldot { background: var(--green); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* DASHBOARD */
+  .dash-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 36px; padding-bottom: 28px; border-bottom: 1px solid var(--border); gap: 24px; }
+  .deceased-name { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 500; margin-bottom: 5px; }
+  .deceased-meta { font-size: 13px; color: var(--ink3); font-weight: 300; }
+  .dash-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .stat-pills { display: flex; gap: 10px; }
+  .stat-pill { text-align: center; padding: 14px 22px; border-radius: var(--r); background: white; border: 1px solid var(--border); min-width: 86px; }
+  .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 500; display: block; line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 10px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-pill.s-urgent .stat-num { color: var(--red); }
+  .stat-pill.s-medium .stat-num { color: var(--amber); }
+  .stat-pill.s-low    .stat-num { color: var(--teal); }
+
+  /* LANG BAR */
+  .lang-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding: 10px 14px; background: white; border: 1px solid var(--border); border-radius: var(--r); font-size: 12px; color: var(--ink3); }
+  .lang-btn { padding: 4px 12px; border-radius: 99px; border: 1px solid var(--border); background: none; font-size: 12px; cursor: pointer; font-family: 'Outfit', sans-serif; color: var(--ink3); transition: all 0.15s; }
+  .lang-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
+
+  /* FILTER TABS */
+  .tabs { display: flex; gap: 3px; margin-bottom: 20px; background: var(--paper2); padding: 3px; border-radius: var(--r); width: fit-content; }
+  .tab { padding: 7px 20px; border-radius: 6px; font-size: 13px; font-weight: 400; cursor: pointer; border: none; background: none; color: var(--ink3); font-family: 'Outfit', sans-serif; transition: all 0.15s; }
+  .tab.active { background: white; color: var(--ink); }
+
+  /* CATEGORY FILTER */
+  .cat-tabs { display: flex; gap: 3px; margin-bottom: 20px; }
+  .cat-tab { padding: 5px 14px; border-radius: 99px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: none; color: var(--ink3); font-family: 'Outfit', sans-serif; transition: all 0.15s; }
+  .cat-tab.active { color: white; border-color: transparent; }
+  .cat-tab[data-cat="bank"].active     { background: #1a5e4e; }
+  .cat-tab[data-cat="govt"].active     { background: #854f0b; }
+  .cat-tab[data-cat="insurance"].active{ background: #185fa5; }
+  .cat-tab[data-cat="property"].active { background: #6b3a8c; }
+
+  /* TASK CARDS */
+  .tasks { display: flex; flex-direction: column; gap: 10px; }
+  .task-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 24px 28px; display: grid; grid-template-columns: 80px 1fr auto; gap: 20px; align-items: start; transition: box-shadow 0.15s; }
+  .task-card:hover { box-shadow: 0 2px 16px rgba(24,24,22,0.07); }
+  .task-card.completed { opacity: 0.5; }
+  .task-card.completed .task-title { text-decoration: line-through; }
+
+  /* CATEGORY BADGE on card */
+  .cat-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 500; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 5px; }
+  .cat-bank      { background: #eaf3f0; color: #1a5e4e; }
+  .cat-govt      { background: #fdf2e0; color: #854f0b; }
+  .cat-insurance { background: #e6f1fb; color: #185fa5; }
+  .cat-property  { background: #f3eaf9; color: #6b3a8c; }
+
+  .priority-col { padding-top: 2px; }
+  .p-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.4px; text-transform: uppercase; }
+  .p-urgent { background: var(--red-bg);   color: var(--red); }
+  .p-medium { background: var(--amber-bg); color: var(--amber); }
+  .p-low    { background: var(--teal-bg);  color: var(--teal); }
+
+  .task-title { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 500; margin-bottom: 5px; line-height: 1.3; }
+  .task-desc  { font-size: 13px; color: var(--ink2); line-height: 1.65; margin-bottom: 12px; }
+  .task-meta-row { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 0; }
+  .task-meta { font-size: 12px; color: var(--ink3); display: flex; align-items: center; gap: 4px; }
+  .task-meta strong { color: var(--ink2); font-weight: 500; }
+  .task-docs { margin-top: 12px; padding: 10px 14px; background: var(--paper); border-radius: 6px; }
+  .docs-title { font-size: 11px; font-weight: 500; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 7px; }
+  .docs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .doc-chip { padding: 3px 10px; background: white; border: 1px solid var(--border); border-radius: 99px; font-size: 12px; color: var(--ink2); }
+
+  /* ACTION BUTTONS */
+  .action-col { display: flex; flex-direction: column; gap: 7px; align-items: flex-end; padding-top: 2px; }
+  .btn-generate { padding: 9px 18px; background: var(--ink); color: var(--paper); border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Outfit', sans-serif; white-space: nowrap; transition: background 0.15s; letter-spacing: 0.2px; }
+  .btn-generate:hover { background: var(--accent); }
+  .btn-mark { padding: 9px 18px; background: none; color: var(--green); border: 1px solid rgba(42,96,56,0.3); border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Outfit', sans-serif; white-space: nowrap; transition: all 0.15s; }
+  .btn-mark:hover { background: var(--green-bg); }
+  .btn-new { padding: 9px 18px; background: none; color: var(--ink3); border: 1px solid var(--border); border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .btn-new:hover { border-color: var(--ink); color: var(--ink); }
+
+  /* MODAL */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(18,18,16,0.55); z-index: 100; align-items: center; justify-content: center; padding: 24px; }
+  .overlay.open { display: flex; }
+  .modal { background: white; border-radius: 12px; padding: 36px; max-width: 660px; width: 100%; max-height: 86vh; overflow-y: auto; position: relative; }
+  .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--ink3); margin-bottom: 24px; letter-spacing: 0.2px; }
+  .modal-close { position: absolute; top: 18px; right: 18px; width: 30px; height: 30px; background: var(--paper2); border: none; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink); line-height: 1; }
+  .modal-loading { display: flex; flex-direction: column; align-items: center; padding: 48px 24px; gap: 14px; }
+  .modal-loading p { font-size: 13px; color: var(--ink3); }
+  .modal-loading small { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink3); }
+  .letter-box { white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink2); background: var(--paper); padding: 22px; border-radius: 6px; line-height: 1.85; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+  .btn-copy { padding: 10px 22px; background: var(--ink); color: white; border: none; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-copy:hover { background: var(--teal); }
+  .btn-close-m { padding: 10px 22px; background: none; color: var(--ink3); border: 1px solid var(--border); border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer; }
+
+  /* DIVIDER */
+  .task-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* GROQ BADGE */
+  .groq-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; background: rgba(247,244,239,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 99px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(247,244,239,0.5); margin-left: 8px; }
+
+
+  /* CHECKLIST */
+  .checklist-wrap { margin-top:10px; padding:10px 14px; background:var(--paper); border-radius:6px; }
+  .checklist-title { font-size:11px; font-weight:500; color:var(--ink3); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; }
+  .checklist-progress { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--teal); }
+  .checklist-items { display:flex; flex-direction:column; gap:5px; }
+  .checklist-item { display:flex; align-items:flex-start; gap:9px; cursor:pointer; padding:4px 6px; border-radius:5px; transition:background 0.12s; }
+  .checklist-item:hover { background:var(--paper2); }
+  .checklist-item input[type=checkbox] { margin-top:2px; accent-color:var(--teal); width:14px; height:14px; flex-shrink:0; cursor:pointer; }
+  .checklist-item label { font-size:12px; color:var(--ink2); line-height:1.5; cursor:pointer; }
+  .checklist-item.done label { text-decoration:line-through; color:var(--ink3); }
+  .progress-bar-wrap { height:3px; background:var(--paper3); border-radius:99px; margin-top:8px; overflow:hidden; }
+  .progress-bar-fill { height:100%; background:var(--teal); border-radius:99px; transition:width 0.3s ease; }
+
+  @media (max-width: 720px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+    .dash-header { flex-direction: column; }
+    .task-card { grid-template-columns: 1fr; }
+    .action-col { flex-direction: row; }
+    header { padding: 14px 20px; }
+    .app { padding: 24px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div>
+      <div class="logo-name">AashrAI</div>
+      <div class="logo-sub">Post-death paperwork, handled</div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">gemini · checking</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- SCREEN 1: INPUT -->
+  <div id="screen-input" class="screen active">
+    <div id="restore-banner" style="display:none" class="notice online"></div>
+    <div id="notice" class="notice checking">Checking Groq API key...</div>
+    <div class="hero">
+      <h1>The worst day of your life shouldn't also be the most bureaucratic</h1>
+      <p>Enter the details below. Our agent generates a complete, prioritised action plan with ready-to-submit letters</p>
+    </div>
+    <div id="error-msg" class="error-msg"></div>
+    <div class="form-grid">
+
+      <div class="form-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          Deceased person
+        </div>
+        <label>Full name *</label>
+        <input type="text" id="dec-name" placeholder="e.g. Ramesh Kumar Sharma" />
+        <div class="field-row">
+          <div>
+            <label>Date of death *</label>
+            <input type="date" id="dec-dod" />
+          </div>
+          <div>
+            <label>Age at death</label>
+            <input type="number" id="dec-age" placeholder="67" min="1" max="120" />
+          </div>
+        </div>
+        <label>State of residence *</label>
+        <select id="dec-state">
+          <option value="">Select state...</option>
+          <option>Maharashtra</option><option>Delhi</option><option>Karnataka</option>
+          <option>Tamil Nadu</option><option>Uttar Pradesh</option><option>Gujarat</option>
+          <option>Rajasthan</option><option>West Bengal</option><option>Telangana</option>
+          <option>Andhra Pradesh</option><option>Kerala</option><option>Madhya Pradesh</option>
+          <option>Punjab</option><option>Haryana</option><option>Bihar</option><option>Other</option>
+        </select>
+        <label>Religion</label>
+        <select id="dec-religion">
+          <option value="">Select...</option>
+          <option>Hindu</option><option>Muslim</option><option>Christian</option>
+          <option>Sikh</option><option>Parsi</option><option>Other</option>
+        </select>
+      </div>
+
+      <div class="form-card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6"/><circle cx="17" cy="7" r="3"/><path d="M21 20c0-3.3-2.7-6-6-6"/><path d="M9 14c2.7 0 6 1.8 6 6H3c0-4.2 3.3-6 6-6z"/></svg>
+          Surviving family
+        </div>
+        <label>Your relationship *</label>
+        <select id="rel">
+          <option value="">You are the...</option>
+          <option>Son/Daughter</option><option>Spouse</option><option>Parent</option>
+          <option>Sibling</option><option>Nominee/Legal heir</option>
+        </select>
+        <label>Your name *</label>
+        <input type="text" id="claimant" placeholder="Your full name" />
+        <label>Other surviving members</label>
+        <input type="text" id="survivors" placeholder="e.g. Spouse, 2 children, mother" />
+        <label>Preferred language</label>
+        <select id="lang-sel">
+          <option value="English">English</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Marathi">Marathi</option>
+          <option value="Tamil">Tamil</option>
+          <option value="Telugu">Telugu</option>
+          <option value="Kannada">Kannada</option>
+        </select>
+      </div>
+
+      <div class="form-card full">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          Assets and accounts
+        </div>
+        <div class="asset-tags" id="asset-tags"></div>
+        <div class="add-row">
+          <input type="text" id="asset-input" placeholder="e.g. SBI savings account, LIC policy, flat in Pune, PF account, vehicle..." />
+          <button class="btn-add" onclick="addAsset()">Add</button>
+        </div>
+        <label style="margin-top:10px">Additional context</label>
+        <textarea id="extra" placeholder="e.g. Government employee, had a will, joint assets..."></textarea>
+      </div>
+
+    </div>
+    <div class="submit-area">
+      <button class="btn-primary" onclick="generate()">Generate action plan &nbsp;&#8594;</button>
+      <p class="submit-note"> &nbsp;built for you by Jugaad &nbsp;</p>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: LOADING -->
+  <div id="screen-loading" class="screen">
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <div class="loading-title">Agents working on your case...</div>
+      <div class="loading-steps">
+        <div class="lstep" id="s1"><div class="ldot"></div>Core Agent Brain - parsing case &amp; building task tree</div>
+        <div class="lstep" id="s2"><div class="ldot"></div>Bank Agent - accounts, nominations, balance claims</div>
+        <div class="lstep" id="s3"><div class="ldot"></div>Govt Agent - death cert, Aadhaar, pension, UIDAI</div>
+        <div class="lstep" id="s4"><div class="ldot"></div>Insurance Agent - LIC claims, policy documents</div>
+        <div class="lstep" id="s5"><div class="ldot"></div>Property Agent - mutation, succession, Bhulekh</div>
+        <div class="lstep" id="s6"><div class="ldot"></div>Merging results &amp; preparing dashboard</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: DASHBOARD -->
+  <div id="screen-dashboard" class="screen">
+    <div class="dash-header">
+      <div>
+        <div class="deceased-name" id="dash-name"></div>
+        <div class="deceased-meta" id="dash-meta"></div>
+      </div>
+      <div class="dash-right">
+        <div class="stat-pills" id="stat-pills"></div>
+        <button class="btn-new" onclick="newCase()">New case</button>
+      </div>
+    </div>
+
+    <div class="lang-bar">
+      <span style="font-size:11px;letter-spacing:0.3px">Output language</span>
+      <button class="lang-btn active" onclick="setLang('English',this)">English</button>
+      <button class="lang-btn" onclick="setLang('Hindi',this)">Hindi</button>
+      <button class="lang-btn" onclick="setLang('Marathi',this)">Marathi</button>
+      <button class="lang-btn" onclick="setLang('Tamil',this)">Tamil</button>
+      <button class="lang-btn" onclick="setLang('Telugu',this)">Telugu</button>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+      <div class="tabs" style="margin-bottom:0">
+        <button class="tab active" onclick="filterPriority('all',this)">All tasks</button>
+        <button class="tab" onclick="filterPriority('urgent',this)">Urgent</button>
+        <button class="tab" onclick="filterPriority('medium',this)">This month</button>
+        <button class="tab" onclick="filterPriority('low',this)">When ready</button>
+      </div>
+      <div class="cat-tabs">
+        <button class="cat-tab active" data-cat="all" onclick="filterCat('all',this)">All</button>
+        <button class="cat-tab" data-cat="bank" onclick="filterCat('bank',this)">Bank</button>
+        <button class="cat-tab" data-cat="govt" onclick="filterCat('govt',this)">Govt</button>
+        <button class="cat-tab" data-cat="insurance" onclick="filterCat('insurance',this)">Insurance</button>
+        <button class="cat-tab" data-cat="property" onclick="filterCat('property',this)">Property</button>
+      </div>
+    </div>
+
+    <div class="tasks" id="tasks"></div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&#215;</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+let GROQ_API_KEY = localStorage.getItem('AashrAI_geminikey') || 'YOUR_GEMINI_KEY_HERE';
+let assets = [], tasks = [], formData = {}, currentLang = 'English';
+let currentPriority = 'all', currentCat = 'all';
+
+/* ── API KEY UI ───────────────────────────────── */
+function checkApiKey() {
+  const notice = document.getElementById('notice');
+  const dot    = document.getElementById('status-dot');
+  const stText = document.getElementById('status-text');
+  if (GROQ_API_KEY && GROQ_API_KEY.length > 10) {
+    notice.className = 'notice online';
+    notice.innerHTML = `Gemini API key set &nbsp;·&nbsp; ${GEMINI_MODEL} &nbsp;&nbsp;&nbsp;<button onclick="clearKey()" style="font-size:11px;padding:2px 8px;border:1px solid currentColor;border-radius:4px;background:none;color:inherit;cursor:pointer;font-family:inherit">Change key</button>`;
+    dot.style.background = '#4ade80';
+    stText.textContent = 'AashrAI';
+  } else {
+    notice.className = 'notice offline';
+    notice.innerHTML = `
+      <div style="width:100%">
+        <div style="margin-bottom:8px;font-weight:500">Enter your Gemini API key to get started &nbsp;·&nbsp; <a href="https://aistudio.google.com/apikey" target="_blank" style="color:inherit;font-size:12px">Get key at aistudio.google.com ↗</a></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="password" id="api-key-input" placeholder="AIzaSy..." 
+            style="flex:1;padding:7px 12px;border-radius:6px;border:1px solid rgba(181,42,42,0.3);font-family:monospace;font-size:13px;background:white;color:#181816;margin:0"
+            onkeydown="if(event.key==='Enter')saveKey()" />
+          <button onclick="saveKey()" style="padding:7px 16px;background:#b52a2a;color:white;border:none;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer;white-space:nowrap">Save key</button>
+        </div>
+      </div>`;
+    dot.style.background = '#ef4444';
+    stText.textContent = 'AashrAI';
+  }
+}
+
+function saveKey() {
+  const val = document.getElementById('api-key-input')?.value.trim();
+  if (!val) return;
+  GROQ_API_KEY = val;
+  localStorage.setItem('AashrAI_geminikey', val);
+  checkApiKey();
+}
+
+function clearKey() {
+  GROQ_API_KEY = '';
+  localStorage.removeItem('AashrAI_geminikey');
+  checkApiKey();
+}
+
+checkApiKey();
+
+/* ── ASSETS ───────────────────────────────────── */
+function addAsset() {
+  const inp = document.getElementById('asset-input');
+  const v = inp.value.trim(); if (!v) return;
+  assets.push(v); renderAssets(); inp.value = ''; inp.focus();
+}
+document.getElementById('asset-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addAsset(); }
+});
+function removeAsset(i) { assets.splice(i, 1); renderAssets(); }
+function renderAssets() {
+  document.getElementById('asset-tags').innerHTML = assets.map((a, i) =>
+    `<div class="asset-tag">${a}<button onclick="removeAsset(${i})">&#215;</button></div>`).join('');
+}
+
+/* ── GEMINI API HELPERS ─────────────────────────── */
+function geminiText(d) {
+  const parts = d.candidates?.[0]?.content?.parts || [];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (parts[i].text) return parts[i].text.trim();
+  }
+  return '';
+}
+
+async function groqChat(system, user, maxTokens = 4000) {
+  if (!GROQ_API_KEY || GROQ_API_KEY === 'YOUR_GEMINI_KEY_HERE') throw new Error('No API key. Please enter your Gemini API key first.');
+  const r = await fetch(`${GEMINI_URL}?key=${GROQ_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: `${system}\n\n${user}` }] }],
+      generationConfig: {
+        temperature: 0.25,
+        maxOutputTokens: maxTokens,
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 }
+      }
+    })
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gemini API error ${r.status}`);
+  }
+  const d = await r.json();
+  return geminiText(d);
+}
+
+async function groqText(system, user, maxTokens = 1500) {
+  if (!GROQ_API_KEY || GROQ_API_KEY === 'YOUR_GEMINI_KEY_HERE') throw new Error('No API key. Please enter your Gemini API key first.');
+  const r = await fetch(`${GEMINI_URL}?key=${GROQ_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: `${system}\n\n${user}` }] }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: maxTokens,
+        thinkingConfig: { thinkingBudget: 0 }
+      }
+    })
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gemini API error ${r.status}`);
+  }
+  const d = await r.json();
+  return geminiText(d).replace(/```/g, '');
+}
+
+function parseJSON(txt) {
+  const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+  if (s === -1 || e === -1) return null;
+  try { return JSON.parse(txt.substring(s, e + 1)); } catch { return null; }
+}
+
+function setStep(n) {
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById(`s${i}`);
+    if (i < n)      el.className = 'lstep done';
+    else if (i === n) el.className = 'lstep active';
+    else            el.className = 'lstep';
+  }
+}
+
+/* ── GENERATE — 5-AGENT FLOW ─────────────────── */
+async function generate() {
+  const name     = document.getElementById('dec-name').value.trim();
+  const dod      = document.getElementById('dec-dod').value;
+  const state    = document.getElementById('dec-state').value;
+  const claimant = document.getElementById('claimant').value.trim();
+  const rel      = document.getElementById('rel').value;
+  const err      = document.getElementById('error-msg');
+  err.classList.remove('show');
+
+  if (!name || !dod || !state || !claimant || !rel) {
+    err.textContent = 'Please fill required fields: deceased name, date of death, state, your name and relationship.';
+    err.classList.add('show'); return;
+  }
+  if (!GROQ_API_KEY) {
+    err.textContent = 'Please enter your Groq API key first.';
+    err.classList.add('show'); return;
+  }
+
+  formData = {
+    name, dod, state,
+    age:       document.getElementById('dec-age').value,
+    religion:  document.getElementById('dec-religion').value,
+    claimant, rel,
+    survivors: document.getElementById('survivors').value,
+    language:  document.getElementById('lang-sel').value,
+    assets:    assets.slice(),
+    extra:     document.getElementById('extra').value.trim()
+  };
+  currentLang = formData.language;
+
+  showScreen('loading');
+  setStep(1);
+
+  const ctx = `Deceased: ${formData.name}, died ${formData.dod}, age ${formData.age || 'unknown'}
+State: ${formData.state}, Religion: ${formData.religion || 'not specified'}
+Claimant: ${formData.claimant} (${formData.rel})
+Survivors: ${formData.survivors || 'none'}
+Assets: ${formData.assets.length ? formData.assets.join(', ') : 'none specified'}
+Extra context: ${formData.extra || 'none'}
+Today: ${new Date().toISOString().split('T')[0]}
+Output language for titles/descriptions: ${formData.language}`;
+
+  const jsonRules = `You MUST output ONLY a valid JSON object. No markdown. No explanation. No code fences. Start directly with {`;
+
+
+  // State-specific portal intelligence
+  const STATE_PORTALS = {
+    'Maharashtra': { deathCert: 'https://aaplesarkar.mahaonline.gov.in', property: 'https://mahabhulekh.maharashtra.gov.in', ration: 'https://rcms.mahafood.gov.in', note: 'Maharashtra uses AapleSarkar portal for death certificate. Property mutation via Mahabhulekh. Vehicle RC at Parivahan.' },
+    'Delhi': { deathCert: 'https://edistrict.delhigovt.nic.in', property: 'https://doris.delhigovt.nic.in', ration: 'https://nfs.delhi.gov.in', note: 'Delhi death certificate via e-District portal. Property via DORIS. DDA for housing.' },
+    'Karnataka': { deathCert: 'https://nadakacheri.karnataka.gov.in', property: 'https://landrecords.karnataka.gov.in', ration: 'https://ahara.kar.nic.in', note: 'Karnataka uses Nadakacheri for death cert. Land records via Bhoomi portal.' },
+    'Tamil Nadu': { deathCert: 'https://tnreginet.gov.in', property: 'https://eservices.tn.gov.in', ration: 'https://www.tnpds.gov.in', note: 'Tamil Nadu death cert via TNREGINET. Property registration via eServices.' },
+    'Telangana': { deathCert: 'https://ts.meeseva.telangana.gov.in', property: 'https://dharani.telangana.gov.in', ration: 'https://epds.telangana.gov.in', note: 'Telangana uses MeeSeva for death cert. Property via Dharani portal — mandatory for mutations.' },
+    'Andhra Pradesh': { deathCert: 'https://meeseva.ap.gov.in', property: 'https://registration.ap.gov.in', ration: 'https://apcivilsupplies.gov.in', note: 'AP uses MeeSeva. Property registration via AP Registration portal.' },
+    'Uttar Pradesh': { deathCert: 'https://edistrict.up.gov.in', property: 'https://bhulekh.up.nic.in', ration: 'https://fcs.up.gov.in', note: 'UP e-District for death cert. Bhulekh for property. Revenue court for succession.' },
+    'Gujarat': { deathCert: 'https://digitalgujarat.gov.in', property: 'https://anyror.gujarat.gov.in', ration: 'https://ipds.gujarat.gov.in', note: 'Gujarat uses Digital Gujarat portal. AnyROR for land records.' },
+    'Rajasthan': { deathCert: 'https://emitra.rajasthan.gov.in', property: 'https://apna.rajasthan.gov.in', ration: 'https://food.rajasthan.gov.in', note: 'Rajasthan eMitra kiosks for death cert. Apna Khata for land records.' },
+    'West Bengal': { deathCert: 'https://edistrict.wb.gov.in', property: 'https://banglarbhumi.gov.in', ration: 'https://wbpds.wb.gov.in', note: 'WB e-District for death cert. Banglar Bhumi for property.' },
+    'Kerala': { deathCert: 'https://cr.lsgkerala.gov.in', property: 'https://erekha.kerala.gov.in', ration: 'https://civilsupplieskerala.gov.in', note: 'Kerala Civil Registration for death cert. E-Rekha for land records.' },
+    'Madhya Pradesh': { deathCert: 'https://mpedistrict.gov.in', property: 'https://mpbhulekh.gov.in', ration: 'https://rationmitra.nic.in', note: 'MP e-District for death cert. MPBhulekh for land records.' },
+    'Punjab': { deathCert: 'https://serviceindia.punjab.gov.in', property: 'https://plrs.org.in', ration: 'https://epos.punjab.gov.in', note: 'Punjab Service India for death cert. PLRS for property.' },
+    'Haryana': { deathCert: 'https://saralharyana.gov.in', property: 'https://jamabandi.nic.in', ration: 'https://haryanafood.gov.in', note: 'Haryana Saral portal for death cert. Jamabandi for land records.' },
+    'Bihar': { deathCert: 'https://serviceonline.bihar.gov.in', property: 'https://biharbhumi.bihar.gov.in', ration: 'https://sfc.bihar.gov.in', note: 'Bihar ServiceOnline for death cert. Bihar Bhumi for property.' },
+  };
+  const stateInfo = STATE_PORTALS[formData.state] || { note: 'Check your state government portal for specific procedures.' };
+
+  const coreSys = `You are the Core Agent Brain of AashrAI, an AI helping Indian families handle post-death paperwork in India.
+${jsonRules}
+STATE-SPECIFIC CONTEXT for ${formData.state}: ${stateInfo.note}
+Key state portals: Death cert portal: ${stateInfo.deathCert || 'check state govt portal'}, Property: ${stateInfo.property || 'check state revenue portal'}
+Output a JSON object with a "tasks" array. Each task object must have exactly these fields:
+- id: unique string e.g. "t1"
+- title: short task name
+- category: one of "bank", "govt", "insurance", "property"
+- priority: one of "urgent", "medium", "low"
+- deadline_days: integer (urgent means <=15, medium means <=45, low means <=90)
+- agency: institution name with state-specific office name where applicable
+- description: 2-3 sentences explaining what to do, referencing state-specific portal/process where relevant
+- documents_required: array of strings
+- form_name: string or empty string (use actual Indian form names e.g. Form 10D, DA-1)
+- portal_url: use the state-specific portal URL above where relevant, else valid national URL or empty string
+- checklist: array of 3-5 short actionable checkbox items the claimant must physically do for this task
+Generate 8-12 tasks tailored to the assets and context provided. Cover: death certificate, Aadhaar, pension if applicable, bank accounts, PF/gratuity, insurance policies, property mutation, vehicle transfer as relevant.`;
+
+  try {
+    // ── AGENT 1: CORE BRAIN ──────────────────────────────────────
+    setStep(1);
+    const coreTxt    = await groqChat(coreSys, ctx + '\n' + jsonRules, 4000);
+    const coreResult = parseJSON(coreTxt);
+    if (!coreResult || !Array.isArray(coreResult.tasks)) {
+      throw new Error('Core Agent failed to return valid tasks. Please try again.');
+    }
+    const allTasks = coreResult.tasks;
+
+    // ── AGENTS 2–5: SPECIALIST SUB-AGENTS ───────────────────────
+    const subAgentDefs = [
+      {
+        step: 2, cat: 'bank',
+        sys: `You are the Bank Agent of AashrAI, specialising in post-death bank procedures in India.
+${jsonRules}
+Given bank-related tasks, enrich each with detailed steps and specific documents.
+Output JSON: { "enriched_tasks": [ { "id": "...", "steps": ["step1","step2",...], "documents_required": ["doc1",...], "tip": "one helpful tip", "checklist": ["physical action 1", "physical action 2", ...] } ] }`,
+        prompt: (t) => `Enrich these bank tasks for Indian banks:\n${JSON.stringify(t)}\n\nContext:\n${ctx}\n${jsonRules}`
+      },
+      {
+        step: 3, cat: 'govt',
+        sys: `You are the Govt Agent of AashrAI, specialising in Indian government procedures: death certificate, Aadhaar deactivation/update, pension cancellation, income tax intimation, UIDAI.
+${jsonRules}
+Output JSON: { "enriched_tasks": [ { "id": "...", "steps": ["step1",...], "documents_required": ["doc1",...], "tip": "one helpful tip", "checklist": ["physical action 1", ...] } ] }`,
+        prompt: (t) => `Enrich these government tasks:\n${JSON.stringify(t)}\n\nContext:\n${ctx}\n${jsonRules}`
+      },
+      {
+        step: 4, cat: 'insurance',
+        sys: `You are the Insurance Agent of AashrAI, specialising in LIC and private insurance death claims in India.
+${jsonRules}
+Output JSON: { "enriched_tasks": [ { "id": "...", "steps": ["step1",...], "documents_required": ["doc1",...], "tip": "one helpful tip", "checklist": ["physical action 1", ...] } ] }`,
+        prompt: (t) => `Enrich these insurance tasks:\n${JSON.stringify(t)}\n\nContext:\n${ctx}\n${jsonRules}`
+      },
+      {
+        step: 5, cat: 'property',
+        sys: `You are the Property Agent of AashrAI, specialising in Indian property mutation, succession certificates, Bhulekh portal, and vehicle RC transfer after death.
+${jsonRules}
+Output JSON: { "enriched_tasks": [ { "id": "...", "steps": ["step1",...], "documents_required": ["doc1",...], "tip": "one helpful tip", "checklist": ["physical action 1", ...] } ] }`,
+        prompt: (t) => `Enrich these property tasks:\n${JSON.stringify(t)}\n\nContext:\n${ctx}\n${jsonRules}`
+      }
+    ];
+
+    const enrichMap = {};
+    for (const agent of subAgentDefs) {
+      setStep(agent.step);
+      const categoryTasks = allTasks.filter(t => t.category === agent.cat);
+      if (categoryTasks.length === 0) continue;
+      try {
+        const txt = await groqChat(agent.sys, agent.prompt(categoryTasks), 2000);
+        const res = parseJSON(txt);
+        if (res && Array.isArray(res.enriched_tasks)) {
+          res.enriched_tasks.forEach(et => { enrichMap[et.id] = et; });
+        }
+      } catch (subErr) {
+        console.warn(`${agent.cat} agent failed (non-fatal):`, subErr.message);
+      }
+    }
+
+    // ── STEP 6: MERGE ───────────────────────────────────────────
+    setStep(6);
+    tasks = allTasks.map(t => {
+      const enriched = enrichMap[t.id];
+      // Initialize checklist_done array if not present
+      const baseChecklist = (enriched?.checklist?.length ? enriched.checklist : t.checklist) || [];
+      if (enriched) {
+        return {
+          ...t,
+          documents_required: enriched.documents_required?.length ? enriched.documents_required : t.documents_required,
+          steps: enriched.steps || [],
+          tip:   enriched.tip   || '',
+          checklist: baseChecklist,
+          checklist_done: new Array(baseChecklist.length).fill(false)
+        };
+      }
+      return { ...t, steps: [], tip: '', checklist: baseChecklist, checklist_done: new Array(baseChecklist.length).fill(false) };
+    });
+
+    // ── RENDER ──────────────────────────────────────────────────
+    document.getElementById('dash-name').textContent = formData.name;
+    const dd = new Date(formData.dod);
+    document.getElementById('dash-meta').textContent =
+      `Passed away ${dd.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · ${formData.state} · Handled by ${formData.claimant} (${formData.rel})`;
+
+    updateStats();
+    renderTasks();
+    showScreen('dashboard');
+
+  } catch (e) {
+    showScreen('input');
+    document.getElementById('error-msg').textContent = e.message;
+    document.getElementById('error-msg').classList.add('show');
+  }
+}
+
+/* ── LETTER GENERATOR ─────────────────────────── */
+async function genLetter(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-loading">
+      <div class="spinner"></div>
+      <p>Writing the letter...</p>
+      <small>Llama 3.3 70B · Groq · Usually under 10 seconds</small>
+    </div>`;
+  document.getElementById('overlay').classList.add('open');
+
+  const sys = `You are AashrAI. Write a complete, formal, ready-to-submit official letter for Indian government/bank/institution use. Output ONLY the letter text. No explanation. No preamble. Language: ${currentLang}.`;
+
+  const user = `Task: ${task.title}
+Agency: ${task.agency}
+Letter type: ${task.form_name || 'Application letter'}
+Deceased: ${formData.name}, died ${formData.dod}, ${formData.state}
+Religion: ${formData.religion || 'not specified'}
+Claimant: ${formData.claimant} (${formData.rel})
+Assets: ${formData.assets.join(', ') || 'none'}
+Survivors: ${formData.survivors || 'none'}
+Include: today's date, recipient address block, subject line, formal body paragraphs, signature block. Use [PLACEHOLDER] for unknown specifics like account numbers or policy numbers.`;
+
+  try {
+    const txt = await groqText(sys, user, 1500);
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-title">${task.title}</div>
+      <div class="modal-sub">${task.agency} &nbsp;·&nbsp; Llama 3.3 70B on Groq &nbsp;·&nbsp; Ready to print and submit</div>
+      <div class="letter-box" id="letter-text">${esc(txt)}</div>
+      <div class="modal-actions">
+        <button class="btn-close-m" onclick="closeModal()">Close</button>
+        <button class="btn-copy" id="btn-copy-letter" onclick="copyLetter()">Copy to clipboard</button>
+        <button class="btn-copy" style="background:var(--teal)" id="btn-pdf-dl" onclick="downloadPDF()">Download PDF</button>
+      </div>`;
+  } catch (e) {
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-title">Error</div>
+      <div style="color:var(--red);font-size:13px;margin-bottom:20px">${e.message}</div>
+      <div class="modal-actions"><button class="btn-close-m" onclick="closeModal()">Close</button></div>`;
+  }
+}
+
+/* ── RENDER TASKS ─────────────────────────────── */
+function renderTasks() {
+  const el = document.getElementById('tasks');
+  let list = tasks;
+  if (currentPriority !== 'all') list = list.filter(t => t.priority === currentPriority);
+  if (currentCat !== 'all')      list = list.filter(t => t.category === currentCat);
+  const ord = { urgent: 0, medium: 1, low: 2 };
+  const sorted = [...list].sort((a, b) => ord[a.priority] - ord[b.priority]);
+
+  if (sorted.length === 0) {
+    el.innerHTML = `<div style="padding:40px;text-align:center;color:var(--ink3);font-size:14px">No tasks in this category.</div>`;
+    return;
+  }
+
+  const deadlineSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+  const agencySvg  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.5"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>`;
+  const formSvg    = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+  const linkSvg    = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+
+  el.innerHTML = sorted.map(t => {
+    const dl = t.deadline_days <= 30
+      ? `Within ${t.deadline_days} days`
+      : `Within ${Math.ceil(t.deadline_days / 30)} months`;
+    const priorityLabel = t.priority === 'urgent' ? 'Urgent' : t.priority === 'medium' ? 'This month' : 'When ready';
+    const catLabel = { bank: 'Bank', govt: 'Govt', insurance: 'Insurance', property: 'Property' }[t.category] || t.category;
+    const docs = t.documents_required?.length ? `
+      <div class="task-docs">
+        <div class="docs-title">Documents needed</div>
+        <div class="docs-chips">${t.documents_required.map(d => `<span class="doc-chip">${d}</span>`).join('')}</div>
+      </div>` : '';
+    const steps = t.steps?.length ? `
+      <div class="task-docs" style="margin-top:8px">
+        <div class="docs-title">Action steps</div>
+        <ol style="margin:4px 0 0 16px;padding:0;font-size:12px;color:var(--ink2);line-height:1.7">
+          ${t.steps.map(s => `<li>${s}</li>`).join('')}
+        </ol>
+      </div>` : '';
+    const checklistDone = t.checklist_done || [];
+    const doneCount = checklistDone.filter(Boolean).length;
+    const totalCount = (t.checklist || []).length;
+    const pct = totalCount ? Math.round((doneCount/totalCount)*100) : 0;
+    const checklist = totalCount ? `
+      <div class="checklist-wrap">
+        <div class="checklist-title">
+          <span>✅ Progress checklist</span>
+          <span class="checklist-progress">${doneCount}/${totalCount} done</span>
+        </div>
+        <div class="checklist-items">
+          ${(t.checklist||[]).map((item,i) => `
+            <div class="checklist-item ${checklistDone[i] ? 'done' : ''}" id="cli-${t.id}-${i}">
+              <input type="checkbox" id="chk-${t.id}-${i}" ${checklistDone[i] ? 'checked' : ''} onchange="toggleCheck('${t.id}',${i},this.checked)">
+              <label for="chk-${t.id}-${i}">${item}</label>
+            </div>`).join('')}
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+      </div>` : '';
+    const tip = t.tip ? `<div style="margin-top:8px;font-size:12px;color:var(--teal);font-style:italic;padding:6px 10px;background:var(--teal-bg);border-radius:5px">Tip: ${t.tip}</div>` : '';
+    const portal = t.portal_url ? `<span class="task-meta">${linkSvg} <a href="${t.portal_url}" target="_blank" style="color:var(--teal);text-decoration:none;">${safeHost(t.portal_url)}</a></span>` : '';
+    return `
+    <div class="task-card ${t.completed ? 'completed' : ''}" id="tc-${t.id}">
+      <div class="priority-col">
+        <span class="p-badge p-${t.priority}">${priorityLabel}</span>
+      </div>
+      <div class="task-body">
+        <span class="cat-badge cat-${t.category}">${catLabel}</span>
+        <div class="task-title">${t.title}</div>
+        <div class="task-desc">${t.description}</div>
+        <div class="task-meta-row">
+          <span class="task-meta">${deadlineSvg} <strong>${dl}</strong></span>
+          <span class="task-meta">${agencySvg} <strong>${t.agency}</strong></span>
+          ${t.form_name ? `<span class="task-meta">${formSvg} <strong>${t.form_name}</strong></span>` : ''}
+          ${portal}
+        </div>
+        ${docs}${steps}${checklist}${tip}
+      </div>
+      <div class="action-col">
+        <button class="btn-generate" onclick="genLetter('${t.id}')">Generate letter</button>
+        <button class="btn-mark" onclick="markDone('${t.id}')">${t.completed ? 'Completed' : 'Mark done'}</button>
+      </div>
+    </div>`;
+  }).join('<div class="task-divider"></div>');
+}
+
+function updateStats() {
+  const u = tasks.filter(t => t.priority === 'urgent' && !t.completed).length;
+  const m = tasks.filter(t => t.priority === 'medium' && !t.completed).length;
+  const l = tasks.filter(t => t.priority === 'low'    && !t.completed).length;
+  document.getElementById('stat-pills').innerHTML = `
+    <div class="stat-pill s-urgent"><span class="stat-num">${u}</span><span class="stat-label">Urgent</span></div>
+    <div class="stat-pill s-medium"><span class="stat-num">${m}</span><span class="stat-label">This month</span></div>
+    <div class="stat-pill s-low"><span class="stat-num">${l}</span><span class="stat-label">When ready</span></div>`;
+}
+
+
+function toggleCheck(taskId, idx, val) {
+  const t = tasks.find(t => t.id === taskId);
+  if (!t) return;
+  if (!t.checklist_done) t.checklist_done = new Array((t.checklist||[]).length).fill(false);
+  t.checklist_done[idx] = val;
+  // Update UI without full re-render (avoids scroll jump)
+  const item = document.getElementById(`cli-${taskId}-${idx}`);
+  if (item) { val ? item.classList.add('done') : item.classList.remove('done'); }
+  // Update progress bar and count
+  const card = document.getElementById(`tc-${taskId}`);
+  if (card) {
+    const doneCount = t.checklist_done.filter(Boolean).length;
+    const total = (t.checklist||[]).length;
+    const pct = total ? Math.round((doneCount/total)*100) : 0;
+    const bar = card.querySelector('.progress-bar-fill');
+    if (bar) bar.style.width = pct + '%';
+    const prog = card.querySelector('.checklist-progress');
+    if (prog) prog.textContent = doneCount + '/' + total + ' done';
+    // Mark card complete if all checked
+    if (doneCount === total && total > 0) {
+      t.completed = true;
+    } else if (t.completed && doneCount < total) {
+      t.completed = false;
+    }
+    updateStats();
+  }
+  saveCase();
+}
+
+function markDone(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) t.completed = !t.completed;
+  updateStats(); renderTasks();
+}
+
+function filterPriority(f, btn) {
+  currentPriority = f;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks();
+}
+
+function filterCat(c, btn) {
+  currentCat = c;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks();
+}
+
+function setLang(l, btn) {
+  currentLang = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function copyLetter() {
+  navigator.clipboard.writeText(document.getElementById('letter-text').innerText).then(() => {
+    const b = document.getElementById('btn-copy-letter');
+    if (!b) return;
+    b.textContent = 'Copied!'; b.style.background = 'var(--green)';
+    setTimeout(() => { b.textContent = 'Copy to clipboard'; b.style.background = ''; }, 2000);
+  });
+}
+
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+document.getElementById('overlay').addEventListener('click', function (e) {
+  if (e.target === this) closeModal();
+});
+
+function showScreen(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + n).classList.add('active');
+}
+
+function newCase() {
+  assets = []; tasks = []; formData = {};
+  currentPriority = 'all'; currentCat = 'all';
+  renderAssets();
+  document.querySelectorAll('input[type=text], input[type=number], textarea').forEach(e => e.value = '');
+  document.querySelectorAll('select').forEach(e => e.selectedIndex = 0);
+  document.getElementById('error-msg').classList.remove('show');
+  showScreen('input');
+}
+
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function safeHost(u) {
+  try { return new URL(u).hostname; } catch { return u; }
+}
+
+/* ── PDF DOWNLOAD ─────────────────────────────── */
+function downloadPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert('PDF library failed to load. Please check your internet connection and try again.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const letterEl = document.getElementById('letter-text');
+  const titleEl  = document.querySelector('#modal-body .modal-title');
+  const taskTitle = titleEl ? titleEl.innerText : 'letter';
+  const txt = letterEl ? letterEl.innerText : '';
+  if (!txt) { alert('No letter content to download.'); return; }
+
+  const pageW  = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const maxW   = pageW - margin * 2;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+
+  const lines = doc.splitTextToSize(txt, maxW);
+  let y = margin;
+  const lineH = 6;
+  const pageH = doc.internal.pageSize.getHeight();
+
+  lines.forEach(line => {
+    if (y + lineH > pageH - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.text(line, margin, y);
+    y += lineH;
+  });
+
+  const safeName = taskTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  doc.save(`${safeName}_letter.pdf`);
+}
+
+/* ── LOCALSTORAGE PERSISTENCE ─────────────────── */
+const STORAGE_KEY = 'AashrAI_case';
+
+function saveCase() {
+  if (!tasks.length) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, formData, currentLang, savedAt: Date.now() }));
+  } catch(e) { console.warn('Save failed:', e); }
+}
+
+function loadCase() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!saved.tasks?.length || !saved.formData?.name) return false;
+
+    const ageHours = (Date.now() - (saved.savedAt || 0)) / 3600000;
+    if (ageHours > 72) { localStorage.removeItem(STORAGE_KEY); return false; }
+
+    tasks    = saved.tasks;
+    formData = saved.formData;
+    currentLang = saved.currentLang || 'English';
+    return true;
+  } catch(e) { return false; }
+}
+
+function clearSavedCase() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+function showRestoreBanner(name, savedAt) {
+  const banner = document.getElementById('restore-banner');
+  if (!banner) return;
+  const when = new Date(savedAt).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  banner.style.display = 'flex';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;gap:8px">
+      <span>&#128196; Saved case found: <strong>${name}</strong> &nbsp;·&nbsp; Last saved ${when}</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="restoreCase()" style="padding:4px 14px;background:var(--green);color:white;border:none;border-radius:5px;font-family:inherit;font-size:12px;cursor:pointer">Restore</button>
+        <button onclick="dismissRestore()" style="padding:4px 14px;background:none;border:1px solid currentColor;border-radius:5px;font-family:inherit;font-size:12px;cursor:pointer;color:inherit">Dismiss</button>
+      </div>
+    </div>`;
+}
+
+function restoreCase() {
+  if (!tasks.length) return;
+  document.getElementById('dash-name').textContent = formData.name;
+  const dd = new Date(formData.dod);
+  document.getElementById('dash-meta').textContent =
+    `Passed away ${dd.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})} · ${formData.state} · Handled by ${formData.claimant} (${formData.rel})`;
+  currentPriority = 'all'; currentCat = 'all';
+  updateStats(); renderTasks(); showScreen('dashboard');
+}
+
+function dismissRestore() {
+  clearSavedCase();
+  tasks = []; formData = {};
+  const banner = document.getElementById('restore-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+/* ── PATCH newCase to also clear storage ─────── */
+const _origNewCase = newCase;
+newCase = function() {
+  clearSavedCase();
+  _origNewCase();
+};
+
+/* ── PATCH renderTasks to auto-save ─────────── */
+const _origRenderTasks = renderTasks;
+renderTasks = function() {
+  _origRenderTasks();
+  if (tasks.length) saveCase();
+};
+
+/* ── ON PAGE LOAD: check for saved case ──────── */
+(function() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const saved = JSON.parse(raw);
+    if (!saved.tasks?.length || !saved.formData?.name) return;
+    const ageHours = (Date.now() - (saved.savedAt || 0)) / 3600000;
+    if (ageHours > 72) { localStorage.removeItem(STORAGE_KEY); return; }
+    tasks    = saved.tasks;
+    formData = saved.formData;
+    currentLang = saved.currentLang || 'English';
+    showRestoreBanner(saved.formData.name, saved.savedAt);
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>
